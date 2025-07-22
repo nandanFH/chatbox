@@ -38,7 +38,8 @@ async function updateConversation(user1Id, user2Id, io) {
       message: msg.message,
       read: msg.read,
       createdAt: msg.createdAt,
-      sender: msg.sender
+      sender: msg.sender,
+      replyToMessageId: msg.replyToMessageId
     }));
     const m2 = filterMessages(user2Id).map(msg => ({
       id: msg.id,
@@ -47,7 +48,8 @@ async function updateConversation(user1Id, user2Id, io) {
       message: msg.message,
       read: msg.read,
       createdAt: msg.createdAt,
-      sender: msg.sender
+      sender: msg.sender,
+      replyToMessageId: msg.replyToMessageId
     }));
     // Emit updated conversation to both users
     io.to(`user_${user1Id}`).emit('conversation_updated', {
@@ -148,7 +150,7 @@ function handleSocketConnection(io) {
           return;
         }
 
-        const { receiverId, message } = data;
+        const { receiverId, message, replyToMessageId } = data;
 
         // Allow users to send messages to themselves (self-messaging enabled)
         if (socket.userId == receiverId) {
@@ -167,7 +169,8 @@ function handleSocketConnection(io) {
           senderId: socket.userId,
           receiverId,
           message,
-          read: false
+          read: false,
+          replyToMessageId // add this line for reply support
         });
 
         console.log(`[SOCKET] Message sent from ${socket.userId} to ${receiverId}: "${message}"`);
@@ -179,13 +182,15 @@ function handleSocketConnection(io) {
           receiverId,
           message,
           read: false,
-          createdAt: newMessage.createdAt
+          createdAt: newMessage.createdAt,
+          replyToMessageId: newMessage.replyToMessageId // include in emit
         });
 
         // Confirm to sender
         socket.emit('message_sent', {
           id: newMessage.id,
-          success: true
+          success: true,
+          replyToMessageId: newMessage.replyToMessageId // include in emit
         });
 
         // Update full conversation for both users

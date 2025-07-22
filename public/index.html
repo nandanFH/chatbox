@@ -38,6 +38,7 @@
     <h3>send message</h3>
     <input id="receiverId" placeholder="receiver ID" type="number">
     <input id="messageText" placeholder="message">
+    <input id="replyToMessageId" placeholder="reply to message ID (optional)" type="number">
     <button onclick="sendMessage()">send</button>
     <button onclick="getConversation()">Get Conversation</button>
 
@@ -181,9 +182,12 @@
       if (!socketAuthenticated) return log('Socket not authenticated');
       const receiverId = document.getElementById('receiverId').value;
       const message = document.getElementById('messageText').value;
+      const replyToMessageId = document.getElementById('replyToMessageId').value;
       if (!receiverId || !message) return log('Receiver ID and message required');
-      socket.emit('send_message', { receiverId: parseInt(receiverId), message });
-      log('Sent message to ' + receiverId);
+      const payload = { receiverId: parseInt(receiverId), message };
+      if (replyToMessageId) payload.replyToMessageId = parseInt(replyToMessageId);
+      socket.emit('send_message', payload);
+      log('Sent message to ' + receiverId + (replyToMessageId ? ' in reply to ' + replyToMessageId : ''));
     }
 
     function getConversation() {
@@ -241,11 +245,18 @@
         panel.textContent = 'No messages.';
         return;
       }
+      // Build a map for quick lookup of message text by id (for reply display)
+      const msgMap = {};
+      messages.forEach(m => { msgMap[m.id] = m; });
       messages.forEach(msg => {
         const div = document.createElement('div');
         div.style.marginBottom = '6px';
         const readStatus = msg.read ? '(read)' : '(unread)';
-        div.textContent = `[${new Date(msg.createdAt).toLocaleString()}] (ID: ${msg.id}) ${msg.sender && msg.sender.username ? msg.sender.username : 'User ' + msg.senderId}: ${msg.message} ${readStatus}`;
+        let replyInfo = '';
+        if (msg.replyToMessageId) {
+          replyInfo = ` (reply to: ${msg.replyToMessageId})`;
+        }
+        div.textContent = `[${new Date(msg.createdAt).toLocaleString()}] (ID: ${msg.id}) ${msg.sender && msg.sender.username ? msg.sender.username : 'User ' + msg.senderId}: ${msg.message}${replyInfo} ${readStatus}`;
         panel.appendChild(div);
       });
       panel.scrollTop = panel.scrollHeight;
